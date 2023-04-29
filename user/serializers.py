@@ -8,8 +8,6 @@ class UserSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "email",
-            "first_name",
-            "last_name",
             "password",
             "is_staff",
         )
@@ -26,6 +24,20 @@ class UserSerializer(serializers.ModelSerializer):
         user = super().update(instance, validated_data)
         if password:
             user.set_password(password)
-            user.save()
+        user.save()
 
         return user
+
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = (
+            "id",
+            "email",
+            "is_staff",
+            "nickname",
+            "image",
+            "bio",
+        )
+        read_only_fields = ("is_staff", "email")
