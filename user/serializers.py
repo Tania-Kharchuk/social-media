@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from user.models import Follow
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,7 +31,7 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 
-class ProfileUpdateSerializer(serializers.ModelSerializer):
+class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
         fields = (
@@ -41,3 +43,30 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             "bio",
         )
         read_only_fields = ("is_staff", "email")
+
+
+class FollowSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Follow
+        fields = "__all__"
+
+    def validate(self, attrs):
+        if self.instance in Follow.objects.all():
+            raise serializers.ValidationError("You already follow this user")
+        return attrs
+
+
+class FollowingDetailSerializer(serializers.ModelSerializer):
+    user = serializers.CharField(source="followed.email", read_only=True)
+
+    class Meta:
+        model = Follow
+        fields = ("created_at", "user")
+
+
+class FollowersDetailSerializer(serializers.ModelSerializer):
+    user = serializers.CharField(source="follower.email", read_only=True)
+
+    class Meta:
+        model = Follow
+        fields = ("created_at", "user")
