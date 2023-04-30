@@ -19,6 +19,7 @@ class Post(models.Model):
     text = models.TextField()
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     media = models.ImageField(upload_to=post_media_file_path, null=True, blank=True)
+    hashtag = models.CharField(max_length=50, null=True, blank=True)
 
     def __str__(self):
         return self.title + "created by" + self.user.email
