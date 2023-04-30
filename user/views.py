@@ -1,13 +1,20 @@
 from django.contrib.auth import get_user_model
-from rest_framework import generics, mixins, viewsets
+from rest_framework import generics, mixins, viewsets, status
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from user.models import Follow
 
 # from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from user.serializers import (
     UserSerializer,
-    ProfileUpdateSerializer,
+    ProfileSerializer,
+    FollowSerializer,
+    FollowingDetailSerializer,
+    FollowersDetailSerializer,
 )
 
 
@@ -27,12 +34,37 @@ class UpdateProfileView(
     generics.RetrieveUpdateAPIView,
     generics.DestroyAPIView,
 ):
-    serializer_class = ProfileUpdateSerializer
-    authentication_classes = (JWTAuthentication,)
+    serializer_class = ProfileSerializer
     permission_classes = (IsAuthenticated,)
 
     def get_object(self):
         return self.request.user
+
+    def get_followers(self):
+        followers = Follow.objects.filter(followed=self.request.user).select_related(
+            "follower"
+        )
+        follower_serializer = FollowersDetailSerializer(followers, many=True)
+        return follower_serializer.data
+
+    def get_following(self):
+        following = Follow.objects.filter(follower=self.request.user).select_related(
+            "followed"
+        )
+        following_serializer = FollowingDetailSerializer(following, many=True)
+        return following_serializer.data
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        follower_data = self.get_followers()
+        following_data = self.get_following()
+        data = {
+            "profile_data": serializer.data,
+            "followers": follower_data,
+            "following": following_data,
+        }
+        return Response(data)
 
 
 class ProfileViewSet(
@@ -41,11 +73,11 @@ class ProfileViewSet(
     viewsets.GenericViewSet,
 ):
     queryset = get_user_model().objects.all()
-    serializer_class = ProfileUpdateSerializer
+    serializer_class = ProfileSerializer
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
-        """Retrieve the movies with filters"""
+        """Retrieve the users with filters"""
         nickname = self.request.query_params.get("nickname")
 
         queryset = self.queryset
@@ -54,6 +86,35 @@ class ProfileViewSet(
             queryset = queryset.filter(nickname__icontains=nickname)
 
         return queryset.distinct()
+
+    def get_serializer_class(self):
+        if self.action == "follow" or self.action == "unfollow":
+            return FollowSerializer
+        return ProfileSerializer
+
+    @action(
+        methods=["POST"],
+        detail=True,
+        url_path="follow",
+    )
+    def follow(self, request, pk):
+        user_to_follow = get_user_model().objects.get(id=pk)
+        follow = Follow.objects.create(follower=request.user, followed=user_to_follow)
+        serializer = FollowSerializer(follow, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.data)
+
+    @action(
+        methods=["POST"],
+        detail=True,
+        url_path="unfollow",
+    )
+    def unfollow(self, request, pk, *args, **kwargs):
+        user_to_unfollow = get_user_model().objects.get(id=pk)
+        follow = Follow.objects.filter(follower=request.user, followed=user_to_unfollow)
+        if follow:
+            follow.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     # @extend_schema(
     #     parameters=[
