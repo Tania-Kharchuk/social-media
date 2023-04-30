@@ -28,4 +28,10 @@ urlpatterns = [
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("logout/", TokenBlacklistView.as_view(), name="token_blacklist"),
     path("", include(router.urls)),
+    path("<int:pk>/follow/", ProfileViewSet.as_view({"post": "follow"}), name="follow"),
+    path(
+        "<int:pk>/unfollow/",
+        ProfileViewSet.as_view({"post": "unfollow"}),
+        name="unfollow",
+    ),
 ]
