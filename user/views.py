@@ -1,9 +1,10 @@
 from django.contrib.auth import get_user_model
+from django.shortcuts import redirect
+from django.urls import reverse
 from rest_framework import generics, mixins, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from user.models import Follow
 
@@ -99,10 +100,23 @@ class ProfileViewSet(
     )
     def follow(self, request, pk):
         user_to_follow = get_user_model().objects.get(id=pk)
-        follow = Follow.objects.create(follower=request.user, followed=user_to_follow)
-        serializer = FollowSerializer(follow, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        return Response(serializer.data)
+        if self.request.user.id != user_to_follow.id:
+            follow = Follow.objects.filter(
+                follower=request.user, followed=user_to_follow
+            )
+            if follow:
+                message = "You are already following this user."
+                return Response(
+                    {"message": message},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            Follow.objects.create(follower=request.user, followed=user_to_follow)
+            return redirect(reverse("user:my_profile"))
+        message = "You can't follow yourself."
+        return Response(
+            {"message": message},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     @action(
         methods=["POST"],
@@ -111,10 +125,35 @@ class ProfileViewSet(
     )
     def unfollow(self, request, pk, *args, **kwargs):
         user_to_unfollow = get_user_model().objects.get(id=pk)
-        follow = Follow.objects.filter(follower=request.user, followed=user_to_unfollow)
-        if follow:
-            follow.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        if self.request.user.id != user_to_unfollow.id:
+            follow = Follow.objects.filter(
+                follower=request.user, followed=user_to_unfollow
+            )
+            if follow:
+                follow.delete()
+                return redirect(reverse("user:my_profile"))
+            message = "You are not following this user."
+            return Response(
+                {"message": message},
+                status=status.HTTP_200_OK,
+            )
+        message = "You can't unfollow yourself."
+        return Response(
+            {"message": message},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    def get_object(self):
+        if self.kwargs.get("pk") == self.request.user.pk:
+            return self.request.user
+        return super().get_object()
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance == self.request.user:
+            return redirect(reverse("user:my_profile"))
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
     # @extend_schema(
     #     parameters=[
