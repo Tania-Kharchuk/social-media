@@ -1,10 +1,18 @@
 from django.db.models import Q
-from rest_framework import viewsets
+from django.shortcuts import get_object_or_404
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
 
-
-from post.models import Post
+from post.models import Post, Like
 from post.permissions import IsOwnerOrReadOnly
-from post.serializers import PostSerializer, PostCreateSerializer, PostDetailSerializer
+from post.serializers import (
+    PostSerializer,
+    PostCreateSerializer,
+    PostDetailSerializer,
+    LikeSerializer,
+)
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -32,8 +40,30 @@ class PostViewSet(viewsets.ModelViewSet):
             return PostDetailSerializer
         if self.action == "create":
             return PostCreateSerializer
-
+        if self.action == "like":
+            return LikeSerializer
         return PostSerializer
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=["post"], url_path="like")
+    def like(self, request, pk):
+        post = get_object_or_404(Post, id=pk)
+        user = request.user
+        serializer = LikeSerializer(data={"post": post.id, "user": user.id})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        response_serializer = PostDetailSerializer(post)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="unlike")
+    def unlike(self, request, pk):
+        post = get_object_or_404(Post, id=pk)
+        user = request.user
+        like = Like.objects.filter(post=post.id, user=user.id)
+        if not like:
+            raise ValidationError("You hadn't liked this post yet")
+        like.delete()
+        response_serializer = PostDetailSerializer(post)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
