@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse
-from rest_framework import generics, mixins, viewsets, status
+from drf_spectacular.types import OpenApiTypes
+from rest_framework import generics, mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -11,7 +12,7 @@ from post.models import Like
 from post.serializers import LikeListSerializer
 from user.models import Follow
 
-# from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from user.serializers import (
     UserSerializer,
@@ -71,12 +72,14 @@ class ProfileViewSet(
     def get_queryset(self):
         """Retrieve the users with filters"""
         nickname = self.request.query_params.get("nickname")
-
+        email = self.request.query_params.get("email")
         queryset = self.queryset
 
         if nickname:
             queryset = queryset.filter(nickname__icontains=nickname)
 
+        if email:
+            queryset = queryset.filter(email__icontains=email)
         return queryset.distinct()
 
     def get_serializer_class(self):
@@ -90,6 +93,7 @@ class ProfileViewSet(
         url_path="follow",
     )
     def follow(self, request, pk):
+        """Follow certain user"""
         user_to_follow = get_object_or_404(get_user_model(), id=pk)
         serializer = FollowSerializer(
             data={"follower": self.request.user.id, "followed": user_to_follow.id}
@@ -104,6 +108,7 @@ class ProfileViewSet(
         url_path="unfollow",
     )
     def unfollow(self, request, pk, *args, **kwargs):
+        """Unfollow certain user"""
         user_to_unfollow = get_object_or_404(get_user_model(), id=pk)
         if self.request.user.id != user_to_unfollow.id:
             follow = Follow.objects.filter(
@@ -127,14 +132,19 @@ class ProfileViewSet(
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
-    # @extend_schema(
-    #     parameters=[
-    #         OpenApiParameter(
-    #             "nickname",
-    #             type=OpenApiTypes.STR,
-    #             description="Filter by nickname (ex. ?title=user)",
-    #         ),
-    #     ]
-    # )
-    # def list(self, request, *args, **kwargs):
-    #     return super().list(request, *args, **kwargs)
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "nickname",
+                type=OpenApiTypes.STR,
+                description="Filter by nickname (ex. ?nickname=john)",
+            ),
+            OpenApiParameter(
+                "email",
+                type=OpenApiTypes.STR,
+                description="Filter by email (ex. ?email=john@gmail.com)",
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
