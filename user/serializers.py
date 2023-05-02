@@ -75,3 +75,22 @@ class FollowersDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Follow
         fields = ("created_at", "user")
+
+
+class MyProfileSerializer(serializers.ModelSerializer):
+    followers = FollowersDetailSerializer(many=True, read_only=True)
+    following = FollowingDetailSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = get_user_model()
+        fields = (
+            "id",
+            "email",
+            "is_staff",
+            "nickname",
+            "image",
+            "bio",
+            "followers",
+            "following",
+        )
+        read_only_fields = ("is_staff", "email")
