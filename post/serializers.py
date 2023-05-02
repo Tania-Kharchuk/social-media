@@ -25,6 +25,17 @@ class LikeDetailSerializer(serializers.ModelSerializer):
         fields = ("id", "post", "user")
 
 
+class LikeListSerializer(serializers.ModelSerializer):
+    post = serializers.CharField(source="post.title", read_only=True)
+
+    class Meta:
+        model = Like
+        fields = (
+            "id",
+            "post",
+        )
+
+
 class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
