@@ -45,8 +45,20 @@ class ProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ("is_staff", "email")
 
 
-class FollowSerializer(serializers.Serializer):
-    pass
+class FollowSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Follow
+        fields = "__all__"
+
+    def validate(self, data):
+        if data["follower"].id == data["followed"].id:
+            raise serializers.ValidationError("You can't follow yourself.")
+        follow = Follow.objects.filter(
+            follower_id=data["follower"], followed_id=data["followed"]
+        )
+        if follow:
+            raise serializers.ValidationError("You have already followed this user.")
+        return data
 
 
 class FollowingDetailSerializer(serializers.ModelSerializer):
