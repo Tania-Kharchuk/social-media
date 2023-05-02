@@ -6,6 +6,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from post.models import Like
+from post.serializers import LikeDetailSerializer
 from user.models import Follow
 
 # from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -55,15 +57,22 @@ class UpdateProfileView(
         following_serializer = FollowingDetailSerializer(following, many=True)
         return following_serializer.data
 
+    def get_liked_posts(self):
+        liked_posts = Like.objects.filter(user=self.request.user).select_related("post")
+        liked_posts_serializer = LikeDetailSerializer(liked_posts, many=True)
+        return liked_posts_serializer.data
+
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
         follower_data = self.get_followers()
         following_data = self.get_following()
+        liked_posts_data = self.get_liked_posts()
         data = {
             "profile_data": serializer.data,
             "followers": follower_data,
             "following": following_data,
+            "you_have_liked": liked_posts_data,
         }
         return Response(data)
 
