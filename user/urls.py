@@ -6,7 +6,12 @@ from rest_framework_simplejwt.views import (
     TokenBlacklistView,
 )
 
-from user.views import CreateUserView, UpdateUserView, UpdateProfileView, ProfileViewSet
+from user.views import (
+    CreateUserView,
+    UpdateUserView,
+    ProfileViewSet,
+    MyProfileView,
+)
 
 router = routers.DefaultRouter()
 router.register("", ProfileViewSet)
@@ -16,7 +21,7 @@ urlpatterns = [
     path("register/", CreateUserView.as_view(), name="create"),
     path(
         "my-profile/",
-        UpdateProfileView.as_view(),
+        MyProfileView.as_view(),
         name="my_profile",
     ),
     path(
