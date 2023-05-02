@@ -1,8 +1,9 @@
 from django.contrib.auth import get_user_model
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse
 from rest_framework import generics, mixins, viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -108,24 +109,13 @@ class ProfileViewSet(
         url_path="follow",
     )
     def follow(self, request, pk):
-        user_to_follow = get_user_model().objects.get(id=pk)
-        if self.request.user.id != user_to_follow.id:
-            follow = Follow.objects.filter(
-                follower=request.user, followed=user_to_follow
-            )
-            if follow:
-                message = "You are already following this user."
-                return Response(
-                    {"message": message},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            Follow.objects.create(follower=request.user, followed=user_to_follow)
-            return redirect(reverse("user:my_profile"))
-        message = "You can't follow yourself."
-        return Response(
-            {"message": message},
-            status=status.HTTP_400_BAD_REQUEST,
+        user_to_follow = get_object_or_404(get_user_model(), id=pk)
+        serializer = FollowSerializer(
+            data={"follower": self.request.user.id, "followed": user_to_follow.id}
         )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return redirect(reverse("user:my_profile"))
 
     @action(
         methods=["POST"],
@@ -133,7 +123,7 @@ class ProfileViewSet(
         url_path="unfollow",
     )
     def unfollow(self, request, pk, *args, **kwargs):
-        user_to_unfollow = get_user_model().objects.get(id=pk)
+        user_to_unfollow = get_object_or_404(get_user_model(), id=pk)
         if self.request.user.id != user_to_unfollow.id:
             follow = Follow.objects.filter(
                 follower=request.user, followed=user_to_unfollow
@@ -141,16 +131,8 @@ class ProfileViewSet(
             if follow:
                 follow.delete()
                 return redirect(reverse("user:my_profile"))
-            message = "You are not following this user."
-            return Response(
-                {"message": message},
-                status=status.HTTP_200_OK,
-            )
-        message = "You can't unfollow yourself."
-        return Response(
-            {"message": message},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+            return ValidationError("You are not following this user.")
+        return ValidationError("You can't unfollow yourself.")
 
     def get_object(self):
         if self.kwargs.get("pk") == self.request.user.pk:
