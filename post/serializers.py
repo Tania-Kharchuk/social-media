@@ -6,10 +6,14 @@ from user.serializers import ProfileSerializer
 
 class PostSerializer(serializers.ModelSerializer):
     author = serializers.CharField(source="user.email", read_only=True)
+    likes_count = serializers.SerializerMethodField()
+
+    def get_likes_count(self, obj):
+        return obj.likes.count()
 
     class Meta:
         model = Post
-        fields = ("id", "title", "text", "media", "hashtag", "author")
+        fields = ("id", "title", "text", "media", "hashtag", "author", "likes_count")
 
 
 class PostCreateSerializer(serializers.ModelSerializer):
