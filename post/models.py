@@ -22,4 +22,18 @@ class Post(models.Model):
     hashtag = models.CharField(max_length=50, null=True, blank=True)
 
     def __str__(self):
-        return self.title + "created by" + self.user.email
+        return self.title + " created by " + self.user.email
+
+
+class Like(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="likes")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.post.title + " liked by " + self.user.email
+
+
+class Comment(models.Model):
+    content = models.CharField(max_length=255)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
